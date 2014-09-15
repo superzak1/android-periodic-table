@@ -62,6 +62,7 @@
     <string name="property_oxidation_states">Oxidation states</string>
     <string name="property_electronegativity">Electronegativity</string>
     <string name="property_ionization_energies">Ionization energies</string>
+    <string name="property_emission_spectrum">Emission spectrum</string>
     <string name="property_atomic_radius">Atomic radius</string>
     <string name="property_covalent_radius">Covalent radius</string>
     <string name="property_van_der_waals_radius">Van der Waals radius</string>

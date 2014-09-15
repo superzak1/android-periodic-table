@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:minHeight="?android:attr/listPreferredItemHeight"
+    android:paddingLeft="6dip"
+    android:paddingStart="6dip"
+    android:paddingRight="6dip"
+    android:paddingEnd="6dip"
+    android:paddingTop="8dip"
+    android:paddingBottom="8dip">
+
+    <TextView android:id="@+id/property_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:singleLine="true"
+        android:ellipsize="marquee"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:paddingBottom="6dip" >
+    </TextView>
+
+    <com.frozendevs.periodictable.view.EmissionSpectrumView
+        android:id="@+id/emission_spectrum_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+</LinearLayout>
