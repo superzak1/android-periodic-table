@@ -23,8 +23,9 @@ def replace_chars(string, charset1, charset2):
 
 class TableCell:
 
-    def __init__(self, value):
+    def __init__(self, value, cellType = 'cell'):
         self.properties = {}
+        self.cellType = cellType
         segments = value.split('|')
         if len(segments) > 1:
             for segment in segments[0::-2]:
@@ -48,6 +49,9 @@ class TableCell:
                 pass
         return 1
 
+    def getCellType(self):
+        return self.cellType
+
 class Article:
 
     units = {}
@@ -65,7 +69,8 @@ class Article:
             r'[\?]', r'\'+\'+', r'\s*\(predicted\)', r'\s*\(estimated\)', r'\s*\(extrapolated\)',
             r'ca[lc]*\.\s*', r'est\.\s*', r'\(\[\[room temperature\|r\.t\.\]\]\)\s*',
             r'\s*\(calculated\)', r'__notoc__\n?', r'{{ref\|[^}]*}}', r'{{citation needed\|[^}]*}}',
-            r'{{dubious\|[^}]*}}' ]
+            r'{{dubious\|[^}]*}}', r'{{{note\|[^}]*}}}', r'{{periodic table legend\|[^}]*}}',
+            r'{{anchor\|[^}]*}}' ]
         content = re.sub(r'|'.join(strip), '', content, flags=re.S | re.IGNORECASE)
 
         replace = [
@@ -95,6 +100,12 @@ class Article:
             [ r'{{frac\|(\d+)\|(\d+)}}', r'\1/\2' ],
             [ r'{{e\|([\d\.\-–−]*)}}', r'×10<sup>\1</sup>' ],
             [ r'{{su\|p=([\d\.\-–−+]*)\|b=([\d\.\-–−+]*)}}', r'(\1\2)' ],
+            [ r'{{element cell-named\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)}}',
+                r'\1;\2;\3;\4;\5;\6;\7' ],
+            [ r'{{element cell-named\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|([^\|}]*)\|link=([^\|}]*)}}',
+                r'\1;\2;\3;\4;\5;\6;\7;\8' ],
+            [ r'{{element cell-asterisk\|(\d+)\|?[^}]*}}',
+                lambda x: '| ' + ''.join([ '*' for i in range(int(x.group(1))) ]) ],
             [ r'\|\|', '\n|' ],
             [ r'!!', '\n!' ]
         ]
@@ -114,19 +125,43 @@ class Article:
         # Parse tables
 
         self.tables = OrderedDict()
-        for match in re.finditer(r'=([^\n]*)=\s+{\|[^\n]*\n?(\|\+[^\n]*\n)?\|?\-?(.*?)\|}',
+        for match in re.finditer(r'=?([^\n]*)?=?\s*{\|[^\n]*\n?(\|[\+\-][^\n]*\n)?\|?\-?(.*?)\|}',
             content, flags=re.S):
-            name = match.group(1).strip(' =').lower()
-            rows = list(filter(len, [ row.strip(' \n\t!\'') for row in match.group(3).split('\n|-') ]))
+            name = match.group(1).strip(' =').lower() if match.group(1) != '' else 'table ' + \
+                str(len(self.tables.keys()) + 1)
+            rows = list(filter(len, [ row.strip(' \n\t!\'') for row in re.split(r'\n\|\-[^\n]*',
+                match.group(3), flags=re.S) ]))
             headers = []
             for row_i, row in enumerate(rows):
-                delimiter = '\n|' if row_i > 0 else '\n!'
-                rows[row_i] = [ TableCell(value.lstrip('|').strip(' \n\t!\'')) \
-                    for value in row.split(delimiter) ]
+                delimiter = '\n!' if '\n!' in row else '\n|'
+                rows[row_i] = [ TableCell(value.lstrip('|').strip(' \n\t!\''),
+                    'cell' if '\n|' in row else 'header') for value in row.split(delimiter) ]
             if len(rows) > 0:
-                headers = [ re.sub(r'\s*\([^)]*\)', '', re.sub(r'[\s\-]', ' ',
-                    cell.getProperty('value').lower())) for cell in rows[0] ]
-                rows = list(filter(len, rows[rows[0][0].getIntProperty('rowspan'):]))
+                rowHeight = 0
+                for row in rows:
+                    for cell in row:
+                        if cell.getCellType() != 'header':
+                            break
+                    else:
+                        rowHeight += 1
+                        continue
+                    break
+                cellOffset = 0
+                for cell in rows[0]:
+                    rowSpan = cell.getIntProperty('rowspan')
+                    colspan = cell.getIntProperty('colspan')
+                    if rowHeight > rowSpan and colspan > 1:
+                        for cellNo in range(colspan):
+                            if cellOffset < len(rows[rowSpan]):
+                                headers.append(re.sub(r'\s*\([^)]*\)', '', re.sub(r'[\s\-]', ' ',
+                                    rows[rowSpan][cellOffset].getProperty('value').lower())))
+                                cellOffset += 1
+                            else:
+                                break
+                    else:
+                        headers.append(re.sub(r'\s*\([^)]*\)', '', re.sub(r'[\s\-]', ' ',
+                            cell.getProperty('value').lower())))
+                rows = list(filter(len, rows[rowHeight:]))
             self.tables[name] = []
             nextRows = []
             for rowNo in range(len(rows)):
@@ -276,7 +311,7 @@ def signal_handler(signal, frame):
     print('\nFetching cancelled by user.')
     sys.exit(0)
 
-def parse(article, articleUrl, ionizationEnergiesDict, elementNames):
+def parse(article, articleUrl, molarIonizationEnergiesDict, elementNames, category):
     # Properties
 
     number = article.getProperty('number')
@@ -290,8 +325,6 @@ def parse(article, articleUrl, ionizationEnergiesDict, elementNames):
         weight = format(float(weight), '.3f').rstrip('.0')
     except ValueError:
         pass
-
-    category = article.getProperty('series', comments=False).capitalize()
 
     group = article.getProperty('group', '3')
 
@@ -351,8 +384,8 @@ def parse(article, articleUrl, ionizationEnergiesDict, elementNames):
 
     electronegativity = article.getProperty('electronegativity', comments=False)
 
-    ionizationEnergies = '\n'.join([key + ': ' + value + ' ' + article.getUnit('ionization energy 1')
-        for key, value in ionizationEnergiesDict[str(number)].items() if value != ''])
+    molarIonizationEnergies = '\n'.join([key + ': ' + value + ' ' + article.getUnit('ionization energy 1')
+        for key, value in molarIonizationEnergiesDict[str(number)].items() if value != ''])
 
     atomicRadius = article.getProperty('atomic radius', comments=False)
 
@@ -418,9 +451,10 @@ def parse(article, articleUrl, ionizationEnergiesDict, elementNames):
     for row in article.getTable('table'):
         isotopeSymbol = re.sub(r'[ ]*' + name, symbol, row['nuclide symbol'], flags=re.IGNORECASE)
 
-        halfLife = re.sub(r'observationally stable|stable', '-',
-            re.sub(r'\s*\[.+?\]|\([^)][\d\.]*\)|\([\d\.]+ \(\w+\)\, [\d\.]+ \(\w+\)\)|\s*[\?#]', '',
-            re.sub(r'yr[s]?|years', 'y', row['half life']).replace(' × ', '×')), flags=re.IGNORECASE)
+        halfLife = re.sub(r'\s*\([^()]*\)', '', re.sub(r'observationally stable|stable', '-',
+            re.sub(r'\s*\[[^\]]+\]?|\s*\([^()]*\)|\s*[\?#]', '', re.sub(r'yr[s]?|years', 'y',
+                re.sub(r'millisecond', 'ms', row['half life'], flags=re.I), flags=re.I) \
+            .replace(' × ', '×')), flags=re.I))
 
         decayModes = re.sub(r'([(<>])(\.)', r'\g<1>0\2', row['decay mode']).splitlines()
 
@@ -489,7 +523,7 @@ def parse(article, articleUrl, ionizationEnergiesDict, elementNames):
         'molarHeatCapacity': molarHeatCapacity,
         'oxidationStates': oxidationStates,
         'electronegativity': electronegativity,
-        'ionizationEnergies': ionizationEnergies,
+        'molarIonizationEnergies': molarIonizationEnergies,
         'atomicRadius': atomicRadius,
         'covalentRadius': covalentRadius,
         'vanDerWaalsRadius': vanDerWaalsRadius,
@@ -526,28 +560,38 @@ if __name__ == '__main__':
     # Parse all ionization energies
 
     article = Article(URL_PREFIX + '/wiki/Special:Export/Molar_ionization_energies_of_the_elements')
-    ionizationEnergiesDict = {}
+    molarIonizationEnergiesDict = {}
     elementNames = []
     for tableName, table in article.getAllTables().items():
         if tableName == '1st–10th' or tableName == '11th–20th' or tableName == '21st–30th':
             for row in table:
                 index = row['number']
-                if index in ionizationEnergiesDict.keys():
-                    ionizationEnergiesDict[index] = OrderedDict(list(
-                        ionizationEnergiesDict[index].items()) + list(row.items()))
+                if index in molarIonizationEnergiesDict.keys():
+                    molarIonizationEnergiesDict[index] = OrderedDict(list(
+                        molarIonizationEnergiesDict[index].items()) + list(row.items()))
                 else:
-                    ionizationEnergiesDict[index] = row
-                ionizationEnergiesDict[index].pop('number', None)
-                name = ionizationEnergiesDict[index].pop('name', None)
-                symbol = ionizationEnergiesDict[index].pop('symbol', None)
+                    molarIonizationEnergiesDict[index] = row
+                molarIonizationEnergiesDict[index].pop('number', None)
+                name = molarIonizationEnergiesDict[index].pop('name', None)
+                symbol = molarIonizationEnergiesDict[index].pop('symbol', None)
                 elementNames.append([ name, symbol ])
 
     # Parse articles
 
-    for element in html.parse(URL_PREFIX + '/wiki/Periodic_table').xpath('//table/tr/td/div[@title]/div/a'):
-        jsonData.append(parse(Article(URL_PREFIX + '/wiki/Special:Export/Template:Infobox_' + \
-            re.sub(r'\s?\([^)]\w*\)', '', element.attrib['title'].lower())),
-            URL_PREFIX + element.attrib['href'], ionizationEnergiesDict, elementNames))
+    article = Article(URL_PREFIX + '/wiki/Special:Export/Template:Periodic_table')
+    categories = []
+    for row in article.getTable('table 1'):
+        for key, value in row.items():
+            segments = [ segment.strip() for segment in value.split(';') ]
+            if len(segments) >= 7:
+                if segments[5].lower() not in categories:
+                    categories.append(segments[5].lower())
+                jsonData.append(parse(
+                    Article(URL_PREFIX + '/wiki/Special:Export/Template:Infobox_' + segments[1]),
+                    URL_PREFIX + '/wiki/' + (replace_chars(segments[7], ' ', '_') \
+                        if len(segments) > 7 else segments[1].capitalize()),
+                    molarIonizationEnergiesDict, elementNames,
+                    categories.index(segments[5].lower())))
 
     # Save
 

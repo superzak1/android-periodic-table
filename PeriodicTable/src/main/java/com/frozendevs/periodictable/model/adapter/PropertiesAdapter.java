@@ -19,8 +19,6 @@ import com.frozendevs.periodictable.R;
 import com.frozendevs.periodictable.model.ElementProperties;
 import com.frozendevs.periodictable.model.TableItem;
 
-import java.util.Arrays;
-
 public class PropertiesAdapter extends BaseExpandableListAdapter implements
         ExpandableListView.OnGroupClickListener {
 
@@ -112,7 +110,50 @@ public class PropertiesAdapter extends BaseExpandableListAdapter implements
         typedArray.recycle();
 
         mTableAdapter = new TableAdapter(context);
-        mTableAdapter.setItems(Arrays.asList((TableItem) properties));
+        mTableAdapter.setItems((TableItem) properties);
+
+        int category = R.string.category_unknown;
+        switch (properties.getCategory()) {
+            case 0:
+                category = R.string.category_diatomic_nonmetals;
+                break;
+
+            case 1:
+                category = R.string.category_noble_gases;
+                break;
+
+            case 2:
+                category = R.string.category_alkali_metals;
+                break;
+
+            case 3:
+                category = R.string.category_alkaline_earth_metals;
+                break;
+
+            case 4:
+                category = R.string.category_metalloids;
+                break;
+
+            case 5:
+                category = R.string.category_polyatomic_nonmetals;
+                break;
+
+            case 6:
+                category = R.string.category_other_metals;
+                break;
+
+            case 7:
+                category = R.string.category_transition_metals;
+                break;
+
+            case 9:
+                category = R.string.category_lanthanides;
+                break;
+
+            case 10:
+                category = R.string.category_actinides;
+                break;
+        }
 
         mProperties = new Property[]{
                 new Property<String>(R.string.properties_header_summary, null),
@@ -129,7 +170,7 @@ public class PropertiesAdapter extends BaseExpandableListAdapter implements
                 new Property<String>(R.string.property_period,
                         String.valueOf(properties.getPeriod())),
                 new Property<String>(R.string.property_block, properties.getBlock()),
-                new Property<String>(R.string.property_category, properties.getCategory()),
+                new Property<String>(R.string.property_category, mContext.getString(category)),
                 new Property<String>(R.string.property_electron_configuration,
                         properties.getElectronConfiguration()),
                 new Property<String>(R.string.property_electrons_per_shell,
@@ -158,8 +199,8 @@ public class PropertiesAdapter extends BaseExpandableListAdapter implements
                         properties.getOxidationStates()),
                 new Property<String>(R.string.property_electronegativity,
                         properties.getElectronegativity()),
-                new Property<String>(R.string.property_ionization_energies,
-                        properties.getIonizationEnergies()),
+                new Property<String>(R.string.property_molar_ionization_energies,
+                        properties.getMolarIonizationEnergies()),
                 new Property<Integer>(R.string.property_emission_spectrum, properties.getNumber(),
                         ViewType.EMISSION_SPECTRUM),
                 new Property<String>(R.string.property_atomic_radius, properties.getAtomicRadius()),
@@ -255,8 +296,15 @@ public class PropertiesAdapter extends BaseExpandableListAdapter implements
                             R.layout.properties_summary_item, parent, false);
 
                     View tileView = convertView.findViewById(R.id.tile_view);
-                    mTableAdapter.getView(mTableAdapter.getItemPosition(
-                            mTableAdapter.getAllItems().get(0)), tileView, (ViewGroup) convertView);
+
+                    for (TableItem item : mTableAdapter.getAllItems()) {
+                        if (item != null) {
+                            mTableAdapter.getView(mTableAdapter.getItemPosition(item), tileView,
+                                    (ViewGroup) convertView);
+                            break;
+                        }
+                    }
+
                     tileView.setClickable(false);
                     tileView.setDuplicateParentStateEnabled(true);
 
@@ -357,11 +405,18 @@ public class PropertiesAdapter extends BaseExpandableListAdapter implements
                     mLegendDialog.setTitle(R.string.context_title_legend);
 
                     View view = LayoutInflater.from(mContext).inflate(
-                            R.layout.properties_summary_item, null);
+                            R.layout.properties_summary_item, parent, false);
 
                     View tileView = view.findViewById(R.id.tile_view);
-                    mTableAdapter.getView(mTableAdapter.getItemPosition(
-                            mTableAdapter.getAllItems().get(0)), tileView, (ViewGroup) view);
+
+                    for (TableItem item : mTableAdapter.getAllItems()) {
+                        if (item != null) {
+                            mTableAdapter.getView(mTableAdapter.getItemPosition(item), tileView,
+                                    (ViewGroup) view);
+                            break;
+                        }
+                    }
+
                     tileView.setClickable(false);
 
                     ((TextView) tileView.findViewById(R.id.element_symbol)).setText(

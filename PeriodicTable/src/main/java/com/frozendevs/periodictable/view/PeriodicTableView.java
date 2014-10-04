@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.os.AsyncTask;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.SoundEffectConstants;
@@ -16,10 +17,7 @@ import com.frozendevs.periodictable.R;
 
 public class PeriodicTableView extends ZoomableScrollView {
 
-    private static final int COLUMNS_COUNT = 18;
-    private static final int ROWS_COUNT = 9;
-    private static final int HORIZONTAL_SPACERS_COUNT = COLUMNS_COUNT - 1;
-    private static final int VERTICAL_SPACERS_COUNT = ROWS_COUNT - 1;
+    private static final int GROUPS_COUNT = 18;
     private final float DEFAULT_SPACING = 1f;
 
     private View mEmptyView = null;
@@ -28,6 +26,7 @@ public class PeriodicTableView extends ZoomableScrollView {
     private Bitmap[] mBitmaps;
     private Matrix mMatrix = new Matrix();
     private View mConvertView;
+    private int mPeriodsCount = 0;
 
     public PeriodicTableView(Context context) {
         super(context);
@@ -48,24 +47,25 @@ public class PeriodicTableView extends ZoomableScrollView {
     }
 
     private void updateEmptyStatus(boolean empty) {
-        if(mEmptyView != null)
+        if (mEmptyView != null) {
             mEmptyView.setVisibility(empty ? VISIBLE : GONE);
+        }
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if(mAdapter != null && !mAdapter.isEmpty() && mBitmaps != null) {
+        if (mAdapter != null && !mAdapter.isEmpty() && mBitmaps != null) {
             float tileSize = getScaledTileSize();
 
             float y = (getHeight() - getScaledHeight()) / 2f;
 
-            for(int row = 0; row < ROWS_COUNT; row++) {
+            for (int row = 0; row < mPeriodsCount; row++) {
                 float x = (getWidth() - getScaledWidth()) / 2f;
 
-                for(int column = 0; column < COLUMNS_COUNT; column++) {
-                    if(x + tileSize > getScrollX() && x < getScrollX() + getWidth() &&
+                for (int column = 0; column < GROUPS_COUNT; column++) {
+                    if (x + tileSize > getScrollX() && x < getScrollX() + getWidth() &&
                             y + tileSize > getScrollY() && y < getScrollY() + getHeight()) {
-                        int position = (row * COLUMNS_COUNT) + column;
+                        int position = (row * GROUPS_COUNT) + column;
 
                         if (mBitmaps[position] != null) {
                             mMatrix.reset();
@@ -95,21 +95,30 @@ public class PeriodicTableView extends ZoomableScrollView {
 
     @Override
     public boolean onSingleTapConfirmed(MotionEvent e) {
-        if(mAdapter != null && !mAdapter.isEmpty()) {
+        if (mAdapter != null && !mAdapter.isEmpty()) {
             float rawX = e.getX() + getScrollX();
             float rawY = e.getY() + getScrollY();
             float tileSize = getScaledTileSize() + DEFAULT_SPACING;
-            float startY = (getHeight() - getScaledHeight()) / 2f;
-            float startX = (getWidth() - getScaledWidth()) / 2f;
+            int scaledWidth = getScaledWidth();
+            int scaledHeight = getScaledHeight();
+            float startY = (getHeight() - scaledHeight) / 2f;
+            float startX = (getWidth() - scaledWidth) / 2f;
 
-            View view = mAdapter.getView(((int)((rawY - startY) / tileSize) * COLUMNS_COUNT) +
-                    (int)((rawX - startX) / tileSize), mConvertView, this);
+            if (rawX >= startX && rawX <= startX + scaledWidth &&
+                    rawY >= startY && rawY <= startY + scaledHeight) {
+                int position = ((int) ((rawY - startY) / tileSize) * GROUPS_COUNT) +
+                        (int) ((rawX - startX) / tileSize);
 
-            if(view != null) {
-                if(view.isClickable()) {
-                    playSoundEffect(SoundEffectConstants.CLICK);
+                if (position >= 0 && position < mAdapter.getCount()) {
+                    View view = mAdapter.getView(position, mConvertView, this);
 
-                    view.performClick();
+                    if (view != null) {
+                        if (view.isClickable()) {
+                            playSoundEffect(SoundEffectConstants.CLICK);
+
+                            view.performClick();
+                        }
+                    }
                 }
             }
         }
@@ -119,57 +128,78 @@ public class PeriodicTableView extends ZoomableScrollView {
 
     @Override
     protected int getScaledWidth() {
-        return Math.round((getScaledTileSize() * COLUMNS_COUNT) +
-                (HORIZONTAL_SPACERS_COUNT * DEFAULT_SPACING));
+        return Math.round((getScaledTileSize() * GROUPS_COUNT) +
+                ((GROUPS_COUNT - 1) * DEFAULT_SPACING));
     }
 
     @Override
     protected int getScaledHeight() {
-        return Math.round((getScaledTileSize() * ROWS_COUNT) +
-                (VERTICAL_SPACERS_COUNT * DEFAULT_SPACING));
+        return Math.round((getScaledTileSize() * mPeriodsCount) +
+                ((mPeriodsCount - 1) * DEFAULT_SPACING));
     }
 
     public void setAdapter(Adapter adapter) {
-        if(adapter != null) {
+        if (adapter != null) {
             mAdapter = adapter;
 
             mAdapter.registerDataSetObserver(new DataSetObserver() {
                 @Override
                 public void onChanged() {
-                    if(!mAdapter.isEmpty()) {
-                        mBitmaps = new Bitmap[COLUMNS_COUNT * ROWS_COUNT];
+                    new AsyncTask<Void, Void, Void>() {
 
-                        for(int row = 0; row < ROWS_COUNT; row++) {
-                            for(int column = 0; column < COLUMNS_COUNT; column++) {
-                                int position = (row * COLUMNS_COUNT) + column;
-
-                                View view = mAdapter.getView(position, mConvertView,
-                                        PeriodicTableView.this);
-
-                                if(view != null) {
-                                    view.measure(MeasureSpec.makeMeasureSpec(getDefaultTileSize(),
-                                                    MeasureSpec.EXACTLY),
-                                            MeasureSpec.makeMeasureSpec(getDefaultTileSize(),
-                                                    MeasureSpec.EXACTLY));
-                                    view.layout(0, 0, view.getMeasuredWidth(),
-                                            view.getMeasuredHeight());
-
-                                    view.buildDrawingCache();
-
-                                    if(view.getDrawingCache() != null) {
-                                        mBitmaps[position] = Bitmap.createBitmap(
-                                                view.getDrawingCache());
-                                    }
-
-                                    view.destroyDrawingCache();
-                                }
-                            }
+                        @Override
+                        protected void onPreExecute() {
+                            updateEmptyStatus(true);
                         }
 
-                        invalidate();
+                        @Override
+                        protected Void doInBackground(Void... params) {
+                            mPeriodsCount = mAdapter.getCount() / GROUPS_COUNT;
 
-                        updateEmptyStatus(false);
-                    }
+                            if (!mAdapter.isEmpty()) {
+                                mBitmaps = new Bitmap[GROUPS_COUNT * mPeriodsCount];
+
+                                for (int row = 0; row < mPeriodsCount; row++) {
+                                    for (int column = 0; column < GROUPS_COUNT; column++) {
+                                        int position = (row * GROUPS_COUNT) + column;
+
+                                        View view = mAdapter.getView(position, mConvertView,
+                                                PeriodicTableView.this);
+
+                                        if (view != null) {
+                                            view.measure(
+                                                    MeasureSpec.makeMeasureSpec(getDefaultTileSize(),
+                                                            MeasureSpec.EXACTLY),
+                                                    MeasureSpec.makeMeasureSpec(getDefaultTileSize(),
+                                                            MeasureSpec.EXACTLY));
+                                            view.layout(0, 0, view.getMeasuredWidth(),
+                                                    view.getMeasuredHeight());
+
+                                            view.buildDrawingCache();
+
+                                            if (view.getDrawingCache() != null) {
+                                                mBitmaps[position] = Bitmap.createBitmap(
+                                                        view.getDrawingCache());
+                                            }
+
+                                            view.destroyDrawingCache();
+                                        }
+                                    }
+                                }
+                            }
+
+                            return null;
+                        }
+
+                        @Override
+                        protected void onPostExecute(Void result) {
+                            if (!mAdapter.isEmpty()) {
+                                invalidate();
+
+                                updateEmptyStatus(false);
+                            }
+                        }
+                    }.execute();
                 }
             });
         }
@@ -177,7 +207,7 @@ public class PeriodicTableView extends ZoomableScrollView {
 
     @Override
     public float getMinimalZoom() {
-        return Math.min((getWidth() - (HORIZONTAL_SPACERS_COUNT * DEFAULT_SPACING)) / COLUMNS_COUNT,
-                (getHeight() - (VERTICAL_SPACERS_COUNT * DEFAULT_SPACING)) / ROWS_COUNT) / getDefaultTileSize();
+        return Math.min((getWidth() - ((GROUPS_COUNT - 1) * DEFAULT_SPACING)) / GROUPS_COUNT,
+                (getHeight() - ((mPeriodsCount - 1) * DEFAULT_SPACING)) / mPeriodsCount) / getDefaultTileSize();
     }
 }
