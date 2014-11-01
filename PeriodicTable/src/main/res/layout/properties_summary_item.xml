@@ -20,7 +20,9 @@
         android:orientation="vertical"
         android:layout_weight="1"
         android:paddingLeft="8dip"
-        android:paddingStart="8dip">
+        android:paddingStart="8dip"
+        android:paddingRight="0dip"
+        android:paddingEnd="0dip">
 
         <TextView
             android:id="@+id/element_electron_configuration"
@@ -28,7 +30,9 @@
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
             android:maxLines="1"
-            android:ellipsize="marquee">
+            android:ellipsize="marquee"
+            android:textAlignment="viewStart"
+            android:layout_gravity="start">
         </TextView>
 
         <TextView
@@ -37,7 +41,9 @@
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
             android:maxLines="1"
-            android:ellipsize="marquee">
+            android:ellipsize="marquee"
+            android:textAlignment="viewStart"
+            android:layout_gravity="start">
         </TextView>
 
         <TextView
@@ -46,7 +52,9 @@
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
             android:maxLines="1"
-            android:ellipsize="marquee">
+            android:ellipsize="marquee"
+            android:textAlignment="viewStart"
+            android:layout_gravity="start">
         </TextView>
 
         <TextView
@@ -55,7 +63,9 @@
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
             android:maxLines="1"
-            android:ellipsize="marquee">
+            android:ellipsize="marquee"
+            android:textAlignment="viewStart"
+            android:layout_gravity="start">
         </TextView>
 
     </LinearLayout>

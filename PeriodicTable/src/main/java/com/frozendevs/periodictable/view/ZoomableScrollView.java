@@ -2,7 +2,6 @@ package com.frozendevs.periodictable.view;
 
 import android.annotation.TargetApi;
 import android.content.Context;
-import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Point;
 import android.os.Build;
@@ -40,16 +39,19 @@ public class ZoomableScrollView extends FrameLayout implements GestureDetector.O
 
     public ZoomableScrollView(Context context) {
         super(context);
+
         initPeriodicTableView(context);
     }
 
     public ZoomableScrollView(Context context, AttributeSet attrs) {
-        super(context, attrs);
+        super(context, attrs, R.attr.zoomableScrollViewStyle);
+
         initPeriodicTableView(context);
     }
 
     public ZoomableScrollView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
+
         initPeriodicTableView(context);
     }
 
@@ -58,10 +60,6 @@ public class ZoomableScrollView extends FrameLayout implements GestureDetector.O
 
         setHorizontalScrollBarEnabled(true);
         setVerticalScrollBarEnabled(true);
-
-        TypedArray styledAttributes = context.obtainStyledAttributes(R.styleable.ZoomableScrollView);
-        initializeScrollbars(styledAttributes);
-        styledAttributes.recycle();
 
         mOverScroller = new OverScroller(context);
         mZoomer = new Zoomer(context);
