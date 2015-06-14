@@ -5,9 +5,12 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.design.widget.AppBarLayout;
+import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
@@ -16,6 +19,7 @@ import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.frozendevs.periodictable.R;
@@ -25,6 +29,8 @@ import com.frozendevs.periodictable.fragment.TableFragment;
 import com.frozendevs.periodictable.helper.Database;
 import com.frozendevs.periodictable.model.ElementProperties;
 import com.frozendevs.periodictable.model.adapter.PagesAdapter;
+import com.frozendevs.periodictable.model.adapter.PropertiesAdapter;
+import com.frozendevs.periodictable.model.adapter.TableAdapter;
 import com.frozendevs.periodictable.view.RecyclerView;
 
 public class PropertiesActivity extends AppCompatActivity {
@@ -45,8 +51,6 @@ public class PropertiesActivity extends AppCompatActivity {
         final TableFragment tableFragment = TableFragment.getInstance();
 
         if (tableFragment != null) {
-            supportPostponeEnterTransition();
-
             setEnterSharedElementCallback(tableFragment.mSharedElementCallback);
 
             /*
@@ -69,14 +73,38 @@ public class PropertiesActivity extends AppCompatActivity {
             }
         }
 
-        ElementProperties elementProperties = Database.getInstance(this).getElementProperties(
+        final ElementProperties elementProperties = Database.getInstance(this).getElementProperties(
                 getIntent().getIntExtra(EXTRA_ATOMIC_NUMBER, 1));
         mWikipediaUrl = elementProperties.getWikipediaLink();
 
-        setSupportActionBar((Toolbar) findViewById(R.id.toolbar));
+        final Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+
+        setSupportActionBar(toolbar);
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle(elementProperties.getName());
+
+        final CollapsingToolbarLayout collapsingToolbar = (CollapsingToolbarLayout) findViewById(
+                R.id.collapsing_toolbar);
+
+        final AppBarLayout appBar = (AppBarLayout) findViewById(R.id.app_bar);
+        appBar.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
+
+            String title = "";
+
+            @Override
+            public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
+                if (-verticalOffset >= appBar.getTotalScrollRange() - toolbar.getHeight() &&
+                        title.equals("")) {
+                    title = elementProperties.getName();
+
+                    collapsingToolbar.setTitle(title);
+                } else if (!title.equals("")) {
+                    title = "";
+
+                    collapsingToolbar.setTitle(title);
+                }
+            }
+        });
 
         Bundle bundle = new Bundle();
         bundle.putSerializable(ARGUMENT_PROPERTIES, elementProperties);
@@ -90,6 +118,34 @@ public class PropertiesActivity extends AppCompatActivity {
 
         TabLayout tabLayout = (TabLayout) findViewById(R.id.tabs);
         tabLayout.setupWithViewPager(viewPager);
+
+        Typeface typeface = Typeface.createFromAsset(getAssets(), "fonts/NotoSans-Regular.ttf");
+
+        TableAdapter tableAdapter = new TableAdapter(this);
+
+        View tileView = findViewById(R.id.tile_view);
+        tableAdapter.getView(elementProperties, tileView, (ViewGroup) tileView.getParent());
+        tileView.setClickable(false);
+
+        TextView configuration = (TextView) findViewById(R.id.element_electron_configuration);
+        configuration.setText(PropertiesAdapter.formatProperty(this,
+                elementProperties.getElectronConfiguration()));
+        configuration.setTypeface(typeface);
+
+        TextView shells = (TextView) findViewById(R.id.element_electrons_per_shell);
+        shells.setText(PropertiesAdapter.formatProperty(this,
+                elementProperties.getElectronsPerShell()));
+        shells.setTypeface(typeface);
+
+        TextView electronegativity = (TextView) findViewById(R.id.element_electronegativity);
+        electronegativity.setText(PropertiesAdapter.formatProperty(this,
+                elementProperties.getElectronegativity()));
+        electronegativity.setTypeface(typeface);
+
+        TextView oxidationStates = (TextView) findViewById(R.id.element_oxidation_states);
+        oxidationStates.setText(PropertiesAdapter.formatProperty(this,
+                elementProperties.getOxidationStates()));
+        oxidationStates.setTypeface(typeface);
     }
 
     @Override

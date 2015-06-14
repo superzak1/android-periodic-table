@@ -12,4 +12,6 @@
     <dimen name="view_pager_tabs_landscape_width">186dp</dimen>
     <dimen name="view_pager_tabs_side_padding">8dp</dimen>
 
+    <dimen name="backdrop_height">176dp</dimen>
+
 </resources>
