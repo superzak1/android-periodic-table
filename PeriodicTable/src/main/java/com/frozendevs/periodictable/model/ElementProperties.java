@@ -11,7 +11,7 @@ public class ElementProperties extends TableItem implements Serializable {
             vanDerWaalsRadius, crystalStructure, magneticOrdering, thermalConductivity,
             thermalExpansion, speedOfSound, youngsModulus, shearModulus, bulkModulus, mohsHardness,
             brinellHardness, electronsPerShell, thermalDiffusivity, electricalResistivity,
-            bandGap, curiePoint, tensileStrength, poissonRatio, vickersHardness, casNumber;
+            bandGap, curiePoint, tensileStrength, poissonRatio, vickersHardness, casNumber, imageUrl;
     private Isotope[] isotopes;
 
     public String getBlock() {
@@ -180,5 +180,9 @@ public class ElementProperties extends TableItem implements Serializable {
 
     public String getCasNumber() {
         return casNumber;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
     }
 }
