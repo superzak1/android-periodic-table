@@ -5,10 +5,14 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Typeface;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.design.widget.TabLayout;
@@ -34,7 +38,9 @@ import com.frozendevs.periodictable.model.adapter.PropertiesAdapter;
 import com.frozendevs.periodictable.model.adapter.TableAdapter;
 import com.frozendevs.periodictable.view.RecyclerView;
 import com.squareup.picasso.Callback;
+import com.squareup.picasso.NetworkPolicy;
 import com.squareup.picasso.Picasso;
+import com.squareup.picasso.RequestCreator;
 
 public class PropertiesActivity extends AppCompatActivity {
 
@@ -158,18 +164,33 @@ public class PropertiesActivity extends AppCompatActivity {
             final View backdropProgressBar = findViewById(R.id.backdrop_progressbar);
             backdropProgressBar.setVisibility(View.VISIBLE);
 
-            Picasso.with(this).load(imageUrl).placeholder(R.drawable.banner).into(backdrop,
-                    new Callback() {
-                        @Override
-                        public void onSuccess() {
-                            backdropProgressBar.setVisibility(View.GONE);
-                        }
+            ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(
+                    Context.CONNECTIVITY_SERVICE);
+            NetworkInfo.State mobileNetwork = connectivityManager.getNetworkInfo(
+                    ConnectivityManager.TYPE_MOBILE).getState();
 
-                        @Override
-                        public void onError() {
-                           onSuccess();
-                        }
-                    });
+            SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+            String downloadWifiOnlyKey = getString(R.string.preferences_download_wifi_only_key);
+
+            RequestCreator requestCreator = Picasso.with(this).load(imageUrl).placeholder(
+                    R.drawable.banner);
+            if ((mobileNetwork == NetworkInfo.State.CONNECTED ||
+                    mobileNetwork == NetworkInfo.State.CONNECTING) &&
+                    preferences.getBoolean(downloadWifiOnlyKey, false)) {
+                requestCreator.networkPolicy(NetworkPolicy.OFFLINE);
+            }
+            requestCreator.into(backdrop, new Callback() {
+                @Override
+                public void onSuccess() {
+                    backdropProgressBar.setVisibility(View.GONE);
+                }
+
+                @Override
+                public void onError() {
+                    onSuccess();
+                }
+            });
         }
     }
 
